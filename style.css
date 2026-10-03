@@ -2111,3 +2111,58 @@ html:not(.js-enabled) .motion-toggle {
     gap: 17px;
   }
 }
+/* Floating dandelion seeds */
+.botanical-frame.dandelion-composition {
+  background: radial-gradient(
+    ellipse at 52% 46%,
+    #e5ead847,
+    transparent 70%
+  );
+  overflow: hidden;
+}
+
+.botanical-frame.dandelion-composition::before {
+  display: none;
+}
+
+#dandelion-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dandelion-ready #dandelion-canvas {
+  opacity: 1;
+}
+
+/* The services heading scrolls with its section */
+.services .section-heading {
+  position: static;
+  top: auto;
+  align-self: start;
+}
+
+/* Emel Gönül's original photograph */
+.portrait.has-photo {
+  background: #e6e8de;
+}
+
+.portrait .portrait-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 28%;
+  filter: none;
+}
+
+@media (max-width: 600px) {
+  .portrait .portrait-image {
+    object-position: 50% 32%;
+  }
+}
