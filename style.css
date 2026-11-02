@@ -2327,21 +2327,9 @@ body {
   background: var(--cream);
 }
 
-/* Koyu yeşilin başlangıç ve bitiş kenarları */
+/* Daha sakin, mat yeşil zemin */
 .process {
-  background: linear-gradient(
-    to bottom,
-    var(--cream) 0,
-    #e3e8db calc(var(--blend-dark) * 0.25),
-    #aec0ac calc(var(--blend-dark) * 0.5),
-    #638270 calc(var(--blend-dark) * 0.75),
-    var(--green) var(--blend-dark),
-    var(--green) calc(100% - var(--blend-dark)),
-    #638270 calc(100% - var(--blend-dark) * 0.75),
-    #aec0ac calc(100% - var(--blend-dark) * 0.5),
-    #e3e8db calc(100% - var(--blend-dark) * 0.25),
-    var(--cream) 100%
-  );
+  background: #3a554a;
 }
 
 /* Krem → açık adaçayı → sıcak beyaz */
