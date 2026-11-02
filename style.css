@@ -2166,3 +2166,56 @@ html:not(.js-enabled) .motion-toggle {
     object-position: 50% 32%;
   }
 }
+/* Sol alttaki karahindiba ve sayfa boyunca uçuşan tohumlar */
+.hero-art,
+.seed-field,
+.process-decoration {
+  display: none !important;
+}
+
+body {
+  isolation: isolate;
+}
+
+#eg-breeze {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.hero {
+  isolation: auto;
+}
+
+.hero .ambient {
+  z-index: 0;
+}
+
+.hero-inner,
+.hero-bottom,
+.section > .container,
+.appointment > .container,
+.footer > .container {
+  position: relative;
+  z-index: 2;
+}
+
+.hero-inner {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+
+.hero-copy {
+  width: 100%;
+  max-width: 680px;
+  justify-self: center;
+}
+
+@media print {
+  #eg-breeze {
+    display: none;
+  }
+}
