@@ -2281,83 +2281,55 @@ body {
 #eg-flower > svg > g[clip-path] {
   clip-path: none !important;
 }
-/* Bölümler arasında yumuşak renk geçişleri */
+/* Daha geniş, eşit dağılan renk geçişleri */
 :root {
-  --blend-light: 160px;
-  --blend-dark: 72px;
-  --blend-sage: 100px;
-}
-
-.hero {
-  background: var(--cream);
-}
-
-/* İlk bölümün arka planını krem renge yavaşça bağlar */
-.hero .ambient {
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    #000 0,
-    #000 calc(100% - var(--blend-light)),
-    transparent 100%
-  );
-
-  mask-image: linear-gradient(
-    to bottom,
-    #000 0,
-    #000 calc(100% - var(--blend-light)),
-    transparent 100%
-  );
-}
-
-/* Krem → sıcak beyaz → krem */
-.about {
-  background: linear-gradient(
-    to bottom,
-    var(--cream) 0,
-    #f8f6ef calc(var(--blend-light) * 0.4),
-    var(--paper) var(--blend-light),
-    var(--paper) calc(100% - var(--blend-light)),
-    #f8f6ef calc(100% - var(--blend-light) * 0.4),
-    var(--cream) 100%
-  );
-}
-
-/* Nasıl ilerliyoruz: yumuşak, mat yeşil */
-:root {
-  --process-fade: 96px;
+  --blend-light: 100px;
+  --blend-sage: 80px;
+  --process-fade: 80px;
   --process-surface: #4b6658;
   --process-mid: #a1ada2;
   --appointment-green: #d4e0cb;
   --appointment-edge: #dce6d4;
 }
 
-/* Kremden yeşile yumuşak geçiş */
-.services {
-  background: linear-gradient(
-    to bottom,
-    var(--cream) 0,
-    var(--cream) calc(100% - var(--process-fade)),
-    #efede5 calc(100% - var(--process-fade) * 0.75),
-    #dbddd4 calc(100% - var(--process-fade) * 0.5),
-    #c0c6bc calc(100% - var(--process-fade) * 0.25),
-    var(--process-mid) 100%
+.hero {
+  background: var(--cream);
+}
+
+.hero .ambient {
+  -webkit-mask-image: linear-gradient(
+    to bottom, #000 calc(100% - var(--blend-light)), transparent
+  );
+  mask-image: linear-gradient(
+    to bottom, #000 calc(100% - var(--blend-light)), transparent
   );
 }
 
-/* Mat yeşil bölüm ve silikleşen kenarları */
+.about {
+  background: linear-gradient(
+    to bottom,
+    var(--cream),
+    var(--paper) var(--blend-light),
+    var(--paper) calc(100% - var(--blend-light)),
+    var(--cream)
+  );
+}
+
+.services {
+  background: linear-gradient(
+    to bottom,
+    var(--cream) calc(100% - var(--process-fade)),
+    var(--process-mid)
+  );
+}
+
 .process {
   background: linear-gradient(
     to bottom,
-    var(--process-mid) 0,
-    #829589 calc(var(--process-fade) * 0.25),
-    #667c6f calc(var(--process-fade) * 0.5),
-    #526c5e calc(var(--process-fade) * 0.75),
+    var(--process-mid),
     var(--process-surface) var(--process-fade),
     var(--process-surface) calc(100% - var(--process-fade)),
-    #526c5e calc(100% - var(--process-fade) * 0.75),
-    #667c6f calc(100% - var(--process-fade) * 0.5),
-    #829589 calc(100% - var(--process-fade) * 0.25),
-    var(--process-mid) 100%
+    var(--process-mid)
   );
 }
 
@@ -2372,29 +2344,22 @@ body {
   color: #ced9c6;
 }
 
-/* Yeşilin kreme doğru yavaşça silikleşmesi */
 .faq {
   background: linear-gradient(
     to bottom,
-    var(--process-mid) 0,
-    #c0c6bc calc(var(--process-fade) * 0.25),
-    #dbddd4 calc(var(--process-fade) * 0.5),
-    #efede5 calc(var(--process-fade) * 0.75),
-    var(--cream) var(--process-fade),
-    var(--cream) 100%
+    var(--process-mid),
+    var(--cream) var(--process-fade)
   );
 }
 
-/* Birlikte bir alan açalım: daha belirgin adaçayı yeşili */
 .appointment {
   border-top-color: transparent;
   background: linear-gradient(
     to bottom,
-    var(--cream) 0,
-    #e1e9d9 calc(var(--blend-sage) * 0.4),
+    var(--cream),
     var(--appointment-green) var(--blend-sage),
-    var(--appointment-green) calc(100% - var(--blend-sage) * 0.6),
-    var(--appointment-edge) 100%
+    var(--appointment-green) calc(100% - var(--blend-sage)),
+    var(--appointment-edge)
   );
 }
 
@@ -2403,14 +2368,11 @@ body {
   color: #4d6150;
 }
 
-/* Yeşil tonu alt bölüme de yay */
 .footer {
   background: linear-gradient(
     to bottom,
-    var(--appointment-edge) 0,
-    #e8edde calc(var(--blend-light) * 0.5),
-    var(--paper) var(--blend-light),
-    var(--paper) 100%
+    var(--appointment-edge),
+    var(--paper) var(--blend-light)
   );
 }
 
@@ -2420,24 +2382,89 @@ body {
   color: #526450;
 }
 
-/* İnce ve hafif renk geçişleri */
-:root {
-  --process-fade: 24px;
-  --blend-light: 48px;
-  --blend-sage: 32px;
+/* Zemine göre ayrı ayrı görünen iki renk katmanı */
+#eg-breeze {
+  overflow: hidden;
+  height: 100dvh;
+}
+
+.eg-tone {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+#eg-flower,
+.eg-flower-copy {
+  position: absolute;
+  width: 390px;
+  height: 390px;
+  left: -80px;
+  bottom: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  filter: none;
+  transition: opacity 0.8s ease;
+}
+
+#eg-flower.is-ready,
+.eg-flower-copy.is-ready {
+  opacity: 0.82;
+}
+
+#eg-flower svg,
+.eg-flower-copy svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.eg-tone img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  max-width: none;
+  object-fit: contain;
+  transform-origin: 76% 42%;
+  will-change: transform, opacity;
+  pointer-events: none;
 }
 
 @media (max-width: 880px) {
   :root {
-    --process-fade: 16px;
+    --process-fade: 60px;
   }
 }
 
 @media (max-width: 600px) {
   :root {
-    --process-fade: 12px;
-    --blend-light: 32px;
-    --blend-dark: 44px;
-    --blend-sage: 24px;
+    --process-fade: 44px;
+    --blend-light: 72px;
+    --blend-sage: 56px;
+  }
+
+  #eg-flower,
+  .eg-flower-copy {
+    width: 280px;
+    height: 280px;
+    left: -60px;
+  }
+
+  #eg-flower.is-ready,
+  .eg-flower-copy.is-ready {
+    opacity: 0.7;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #eg-flower,
+  .eg-flower-copy {
+    transition: none;
   }
 }
