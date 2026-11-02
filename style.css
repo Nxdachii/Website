@@ -2468,9 +2468,11 @@ body {
     transition: none;
   }
 }
-/* Bölüm birleşimlerinde çok ince renk geçişi */
+/* 03 — Nasıl ilerliyoruz: ince geçiş, hafif açık yeşil */
 :root {
-  --process-fade: 2px;
+  --process-fade: 1px;
+  --process-surface: #506b5d;
+  --process-mid: #a3afa4;
   --blend-light: 6px;
   --blend-sage: 6px;
 }
