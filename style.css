@@ -2468,3 +2468,9 @@ body {
     transition: none;
   }
 }
+/* Bölüm birleşimlerinde çok ince renk geçişi */
+:root {
+  --process-fade: 2px;
+  --blend-light: 6px;
+  --blend-sage: 6px;
+}
