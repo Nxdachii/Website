@@ -63,7 +63,7 @@
     if (motionAllowed() && typeof window.Lenis === "function") {
       lenis = new window.Lenis({
         autoRaf: true,
-        lerp: 0.13,
+        lerp: 0.09,
         smoothWheel: true,
         syncTouch: false,
         wheelMultiplier: 1,
