@@ -2281,3 +2281,92 @@ body {
 #eg-flower > svg > g[clip-path] {
   clip-path: none !important;
 }
+/* Bölümler arasında yumuşak renk geçişleri */
+:root {
+  --blend-light: 160px;
+  --blend-dark: 72px;
+  --blend-sage: 100px;
+}
+
+.hero {
+  background: var(--cream);
+}
+
+/* İlk bölümün arka planını krem renge yavaşça bağlar */
+.hero .ambient {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - var(--blend-light)),
+    transparent 100%
+  );
+
+  mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 calc(100% - var(--blend-light)),
+    transparent 100%
+  );
+}
+
+/* Krem → sıcak beyaz → krem */
+.about {
+  background: linear-gradient(
+    to bottom,
+    var(--cream) 0,
+    #f8f6ef calc(var(--blend-light) * 0.4),
+    var(--paper) var(--blend-light),
+    var(--paper) calc(100% - var(--blend-light)),
+    #f8f6ef calc(100% - var(--blend-light) * 0.4),
+    var(--cream) 100%
+  );
+}
+
+.services,
+.faq {
+  background: var(--cream);
+}
+
+/* Koyu yeşilin başlangıç ve bitiş kenarları */
+.process {
+  background: linear-gradient(
+    to bottom,
+    var(--cream) 0,
+    #e3e8db calc(var(--blend-dark) * 0.25),
+    #aec0ac calc(var(--blend-dark) * 0.5),
+    #638270 calc(var(--blend-dark) * 0.75),
+    var(--green) var(--blend-dark),
+    var(--green) calc(100% - var(--blend-dark)),
+    #638270 calc(100% - var(--blend-dark) * 0.75),
+    #aec0ac calc(100% - var(--blend-dark) * 0.5),
+    #e3e8db calc(100% - var(--blend-dark) * 0.25),
+    var(--cream) 100%
+  );
+}
+
+/* Krem → açık adaçayı → sıcak beyaz */
+.appointment {
+  border-top-color: transparent;
+
+  background: linear-gradient(
+    to bottom,
+    var(--cream) 0,
+    #f0f1e5 calc(var(--blend-sage) * 0.45),
+    #e9edde var(--blend-sage),
+    #e9edde calc(100% - var(--blend-sage)),
+    #f2f3e9 calc(100% - var(--blend-sage) * 0.4),
+    var(--paper) 100%
+  );
+}
+
+.footer {
+  background: var(--paper);
+}
+
+@media (max-width: 600px) {
+  :root {
+    --blend-light: 100px;
+    --blend-dark: 44px;
+    --blend-sage: 72px;
+  }
+}
