@@ -2322,14 +2322,66 @@ body {
   );
 }
 
-.services,
-.faq {
-  background: var(--cream);
+/* Yeşilin iki tarafta yumuşakça silikleşmesi */
+:root {
+  --process-fade: 96px;
+  --process-surface: #3a554a;
+  --process-mid: #98a49b;
 }
 
-/* Daha sakin, mat yeşil zemin */
+/* Kremden yeşile geçişin ilk yarısı */
+.services {
+  background: linear-gradient(
+    to bottom,
+    var(--cream) 0,
+    var(--cream) calc(100% - var(--process-fade)),
+    #eeece4 calc(100% - var(--process-fade) * 0.75),
+    #d9dad2 calc(100% - var(--process-fade) * 0.5),
+    #bbc1b8 calc(100% - var(--process-fade) * 0.25),
+    var(--process-mid) 100%
+  );
+}
+
+/* Mat yeşil bölüm ve yumuşayan kenarları */
 .process {
-  background: #3a554a;
+  background: linear-gradient(
+    to bottom,
+    var(--process-mid) 0,
+    #76877d calc(var(--process-fade) * 0.25),
+    #576e63 calc(var(--process-fade) * 0.5),
+    #425c51 calc(var(--process-fade) * 0.75),
+    var(--process-surface) var(--process-fade),
+    var(--process-surface) calc(100% - var(--process-fade)),
+    #425c51 calc(100% - var(--process-fade) * 0.75),
+    #576e63 calc(100% - var(--process-fade) * 0.5),
+    #76877d calc(100% - var(--process-fade) * 0.25),
+    var(--process-mid) 100%
+  );
+}
+
+/* Yeşilden kreme geçişin son yarısı */
+.faq {
+  background: linear-gradient(
+    to bottom,
+    var(--process-mid) 0,
+    #bbc1b8 calc(var(--process-fade) * 0.25),
+    #d9dad2 calc(var(--process-fade) * 0.5),
+    #eeece4 calc(var(--process-fade) * 0.75),
+    var(--cream) var(--process-fade),
+    var(--cream) 100%
+  );
+}
+
+@media (max-width: 880px) {
+  :root {
+    --process-fade: 64px;
+  }
+}
+
+@media (max-width: 600px) {
+  :root {
+    --process-fade: 48px;
+  }
 }
 
 /* Krem → açık adaçayı → sıcak beyaz */
