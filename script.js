@@ -961,14 +961,19 @@
       }
     }
 
-            const sprite = await makeSeed();
-
-    // Lightweight, individually animated seed images.
+                const sprite = await makeSeed();
     const field = document.createElement("div");
     field.id = "eg-breeze";
     field.setAttribute("aria-hidden", "true");
-    field.style.overflow = "hidden";
     canvas.replaceWith(field);
+
+    const tones = ["ink", "light"].map(name => {
+      const el = document.createElement("div");
+      el.className = "eg-tone eg-tone-" + name;
+      field.append(el);
+      return el;
+    });
+    tones[0].append(flower);
 
     const seedImages = [
       sprite.normal.toDataURL(),
@@ -976,7 +981,6 @@
     ];
 
     const flowerData = copy(data);
-
     flowerData.layers = flowerData.layers.filter(
       layer => !/^semill/i.test(layer.nm || "")
     );
@@ -985,7 +989,7 @@
       name: "emel-flower",
       container: flower,
       renderer: "svg",
-      loop: true,
+      loop: false,
       autoplay: false,
       animationData: flowerData,
       rendererSettings: {
@@ -994,53 +998,67 @@
     });
 
     await ready(animation);
-
-    animation.setSubframe(true);
     animation.goToAndStop(60, true);
-    flower.classList.add("is-ready");
 
-    const body = flower.querySelector("svg > g > g");
     const svg = flower.querySelector("svg");
-    const initialMatrix = body?.getCTM();
+    svg.querySelectorAll("[clip-path]").forEach(el => {
+      el.removeAttribute("clip-path");
+    });
 
-    const baseAngle = initialMatrix
-      ? Math.atan2(initialMatrix.b, initialMatrix.a) *
-        180 / Math.PI
-      : 0;
+    const body = svg.querySelector("g > g");
+    const initialMatrix = body.getCTM();
+    const baseAngle =
+      Math.atan2(initialMatrix.b, initialMatrix.a) * 180 / Math.PI;
 
-    svg.style.transformOrigin = "25.62% 92.75%";
-    svg.style.willChange = "transform";
+    const lightFlower = document.createElement("div");
+    lightFlower.className = "eg-flower-copy";
 
-    const sway = svg.animate
-      ? svg.animate(
-          [
-            {
-              transform: `rotate(${2 - baseAngle}deg)`,
-            },
-            {
-              transform: `rotate(${-2 - baseAngle}deg)`,
-            },
-            {
-              transform: `rotate(${2 - baseAngle}deg)`,
-            },
-          ],
-          {
-            duration:
-              animation.totalFrames /
-              data.fr /
-              0.42 *
-              1000,
+    const lightSvg = svg.cloneNode(true);
+    lightSvg.querySelector("defs")?.remove();
+    lightSvg.querySelectorAll("[id]").forEach(el => {
+      el.removeAttribute("id");
+    });
+
+    lightSvg.querySelectorAll("[fill], [stroke]").forEach(el => {
+      for (const attr of ["fill", "stroke"]) {
+        if (
+          el.hasAttribute(attr) &&
+          el.getAttribute(attr) !== "none"
+        ) {
+          el.setAttribute(attr, "#e0dfc9");
+        }
+      }
+    });
+
+    lightFlower.append(lightSvg);
+    tones[1].append(lightFlower);
+
+    const flowers = [flower, lightFlower];
+    const svgs = [svg, lightSvg];
+
+    const swayFrames = [2, -2, 2].map(angle => ({
+      transform: `rotate(${angle - baseAngle}deg)`,
+    }));
+
+    const duration =
+      animation.totalFrames / data.fr / 0.42 * 1000;
+
+    const sways = svg.animate
+      ? svgs.map(el => {
+          el.style.willChange = "transform";
+
+          const sway = el.animate(swayFrames, {
+            duration,
             iterations: Infinity,
             easing: "ease-in-out",
-          }
-        )
-      : null;
+          });
 
-    sway?.pause();
+          sway.pause();
+          return sway;
+        })
+      : [];
 
-    const media = matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    );
+    const media = matchMedia("(prefers-reduced-motion: reduce)");
 
     const canMove = () =>
       !media.matches &&
@@ -1050,55 +1068,158 @@
     const seeds = [];
     const TAU = Math.PI * 2;
 
-    let width = 0;
-    let height = 0;
-    let time = 0;
-    let raf = 0;
-    let last = 0;
-    let nextSeed = 1.5;
-    let dirty = true;
-    let breeze = 0;
+    let width = 0, height = 0, time = 0, raf = 0, last = 0;
+    let nextSeed = 1.5, dirty = true, breeze = 0;
     let previousScroll = scrollY;
-    let flowerBox;
-    let darkBand = { top: -1, bottom: -1 };
-    let launchBag = [];
-    let warmIndex = 0;
+    let launchBag = [], warmIndex = 0;
 
     const warmOffset = random(0, TAU);
 
-    const isDark = y =>
-      y >= darkBand.top && y <= darkBand.bottom;
-
-    // Follow the flower's actual position, scale and rotation.
     function artworkPoint(x, y) {
-      const m = body?.getScreenCTM();
-
-      if (m) {
-        return {
-          x: m.a * x + m.c * y + m.e,
-          y: m.b * x + m.d * y + m.f,
-        };
-      }
-
-      const scale = flowerBox.width / 596 * 1.5;
+      const m = body.getScreenCTM();
 
       return {
-        x:
-          flowerBox.left +
-          flowerBox.width * 0.33 +
-          (x - 80) * scale,
-
-        y:
-          flowerBox.top +
-          flowerBox.height * 0.56 +
-          (y - 100) * scale,
+        x: m.a * x + m.c * y + m.e,
+        y: m.b * x + m.d * y + m.f,
       };
+    }
+
+    // Animasyon dosyasındaki gerçek sap ucunun koordinatı.
+    const stemBase = { x: 57.99, y: 239.419 };
+
+    function anchorStem() {
+      const currents = sways.map(sway => sway.currentTime);
+
+      sways.forEach(sway => sway.cancel());
+      svgs.forEach(el => {
+        el.style.transform = "none";
+      });
+
+      animation.resize();
+
+      const m = body.getCTM();
+      const x = m.a * stemBase.x + m.c * stemBase.y + m.e;
+      const y = m.b * stemBase.x + m.d * stemBase.y + m.f;
+
+      flowers.forEach((el, i) => {
+        el.style.bottom = `${y - el.offsetHeight - 1}px`;
+        svgs[i].style.transformOrigin = `${x}px ${y}px`;
+      });
+
+      sways.forEach((sway, i) => {
+        sway.currentTime = currents[i] || 0;
+      });
+    }
+
+    function rgb(value) {
+      const hex = value.trim().replace("#", "");
+
+      if (/^[0-9a-f]{6}$/i.test(hex)) {
+        return [0, 2, 4].map(i =>
+          parseInt(hex.slice(i, i + 2), 16)
+        );
+      }
+
+      return (value.match(/[\d.]+/g) || [])
+        .slice(0, 3)
+        .map(Number);
+    }
+
+    function luminance(color) {
+      const c = color.map(v => {
+        const n = v / 255;
+
+        return n <= 0.04045
+          ? n / 12.92
+          : ((n + 0.055) / 1.055) ** 2.4;
+      });
+
+      return c[0] * 0.2126 + c[1] * 0.7152 + c[2] * 0.0722;
+    }
+
+    const inkL = luminance([61, 92, 69]);
+    const lightL = luminance([224, 223, 201]);
+
+    const switchL =
+      Math.sqrt((inkL + 0.05) * (lightL + 0.05)) - 0.05;
+
+    // Renk maskesi ekrana bağlıdır; çizimin her parçası
+    // kendi arkasındaki zemine göre renklendirilir.
+    function updateMasks() {
+      const box = darkSection?.getBoundingClientRect();
+      const style = getComputedStyle(document.documentElement);
+
+      const fade =
+        parseFloat(style.getPropertyValue("--process-fade")) || 80;
+
+      const middle = rgb(
+        style.getPropertyValue("--process-mid")
+      );
+
+      const surface = rgb(
+        style.getPropertyValue("--process-surface")
+      );
+
+      const weight = y => {
+        if (!box || y < box.top || y > box.bottom) return 0;
+
+        const t = clamp(
+          Math.min(y - box.top, box.bottom - y) / fade,
+          0,
+          1
+        );
+
+        const background = middle.map(
+          (c, i) => c + (surface[i] - c) * t
+        );
+
+        const a = clamp(
+          (switchL + 0.018 - luminance(background)) / 0.036,
+          0,
+          1
+        );
+
+        return a * a * (3 - 2 * a);
+      };
+
+      const positions = [0, height];
+
+      if (box) {
+        for (let i = 0; i <= 32; i++) {
+          positions.push(box.top + fade * i / 32);
+          positions.push(box.bottom - fade * i / 32);
+        }
+      }
+
+      const stops = [
+        ...new Set(
+          positions.filter(y => y >= 0 && y <= height)
+        ),
+      ].sort((a, b) => a - b);
+
+      tones.forEach((el, i) => {
+        const mask =
+          "linear-gradient(to bottom," +
+          stops.map(y => {
+            const a = weight(y);
+
+            return (
+              `rgba(0,0,0,${(i ? a : 1 - a).toFixed(4)}) ` +
+              `${y.toFixed(2)}px`
+            );
+          }).join(",") +
+          ")";
+
+        el.style.maskImage = mask;
+        el.style.webkitMaskImage = mask;
+      });
+
+      dirty = false;
     }
 
     function launchPoint() {
       const center = artworkPoint(80, 100);
-      let point;
-      let heading;
+      let point, heading;
 
       for (let attempt = 0; attempt < 12; attempt++) {
         if (!launchBag.length) {
@@ -1116,9 +1237,7 @@
           }
         }
 
-        const angle =
-          launchBag.pop() + random(-0.18, 0.18);
-
+        const angle = launchBag.pop() + random(-0.18, 0.18);
         const radius = random(58, 76);
 
         point = artworkPoint(
@@ -1136,9 +1255,7 @@
           point.x < width - 6 &&
           point.y > 20 &&
           point.y < height - 12
-        ) {
-          break;
-        }
+        ) break;
       }
 
       return { ...point, heading };
@@ -1158,49 +1275,33 @@
       const depth = random(0.75, 1.12);
       const speed = random(22, 30) * depth;
 
-      const size =
-        random(
-          width < 600 ? 35 : 42,
-          width < 600 ? 49 : 61
-        ) * depth;
+      const size = random(
+        width < 600 ? 35 : 42,
+        width < 600 ? 49 : 61
+      ) * depth;
 
-      const el = document.createElement("img");
-
-      el.alt = "";
-      el.draggable = false;
-      el.src = seedImages[0];
-
-      el.style.cssText = `
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: ${size}px;
-        height: ${size * sprite.ratio}px;
-        transform-origin: 76% 42%;
-        will-change: transform, opacity;
-        pointer-events: none;
-        opacity: 0;
-      `;
-
-      field.append(el);
+      const els = tones.map((layer, i) => {
+        const el = document.createElement("img");
+        el.alt = "";
+        el.draggable = false;
+        el.src = seedImages[i];
+        el.style.width = `${size}px`;
+        el.style.height = `${size * sprite.ratio}px`;
+        el.style.opacity = "0";
+        layer.append(el);
+        return el;
+      });
 
       seeds.push({
-        x: warm
-          ? random(0.12, 0.9) * width
-          : source.x,
-
-        y: warm
-          ? random(0.12, 0.85) * height
-          : source.y,
-
+        x: warm ? random(0.12, 0.9) * width : source.x,
+        y: warm ? random(0.12, 0.85) * height : source.y,
         vx: Math.cos(heading) * speed,
         vy: Math.sin(heading) * speed,
         heading: heading + random(-1.3, 1.3),
         speed,
         depth,
         size,
-        el,
-        dark: false,
+        els,
         angle: heading,
         spin: random(-0.025, 0.025),
         phase: random(0, TAU),
@@ -1213,19 +1314,16 @@
     }
 
     function paint() {
-      if (dirty) {
-        const box = darkSection?.getBoundingClientRect();
+      if (dirty) updateMasks();
 
-        darkBand = box
-          ? { top: box.top, bottom: box.bottom }
-          : { top: -1, bottom: -1 };
+      if (!sways.length) {
+        const angle =
+          Math.cos(time * TAU / (duration / 1000)) * 2 -
+          baseAngle;
 
-        flower.classList.toggle(
-          "is-dark",
-          isDark(artworkPoint(80, 100).y)
-        );
-
-        dirty = false;
+        svgs.forEach(el => {
+          el.style.transform = `rotate(${angle}deg)`;
+        });
       }
 
       for (const seed of seeds) {
@@ -1241,36 +1339,21 @@
           seed.angle +
           Math.sin(time * 0.25 + seed.phase) * 0.16;
 
-        const dark = isDark(seed.y);
+        const transform =
+          `translate3d(${seed.x - seed.size * 0.76}px,` +
+          `${seed.y - h * 0.42}px,0) rotate(${angle}rad)`;
 
-        if (dark !== seed.dark) {
-          seed.el.src = seedImages[dark ? 1 : 0];
-          seed.dark = dark;
+        for (const el of seed.els) {
+          el.style.transform = transform;
+          el.style.opacity = String(
+            Math.max(0, fade) * seed.alpha
+          );
         }
-
-        seed.el.style.transform =
-          `translate3d(` +
-          `${seed.x - seed.size * 0.76}px,` +
-          `${seed.y - h * 0.42}px,0) ` +
-          `rotate(${angle}rad)`;
-
-        seed.el.style.opacity = String(
-          Math.max(0, fade) * seed.alpha
-        );
       }
     }
 
     function update(delta) {
       time += delta;
-
-      if (!sway) {
-        animation.goToAndStop(
-          (60 + time * data.fr * 0.42) %
-            animation.totalFrames,
-          true
-        );
-      }
-
       breeze *= Math.exp(-delta * 2);
 
       if (time >= nextSeed) {
@@ -1279,108 +1362,86 @@
       }
 
       for (let i = seeds.length - 1; i >= 0; i--) {
-        const seed = seeds[i];
-
-        seed.age += delta;
+        const s = seeds[i];
+        s.age += delta;
 
         const outside =
-          seed.x < -45 ||
-          seed.x > width + 45 ||
-          seed.y < -45 ||
-          seed.y > height + 45;
+          s.x < -45 ||
+          s.x > width + 45 ||
+          s.y < -45 ||
+          s.y > height + 45;
 
-        if (outside && !seed.recovering) {
-          seed.heading =
+        if (outside && !s.recovering) {
+          s.heading =
             Math.atan2(
-              height * 0.5 - seed.y,
-              width * 0.5 - seed.x
+              height * 0.5 - s.y,
+              width * 0.5 - s.x
             ) + random(-0.6, 0.6);
 
-          seed.recovering = true;
-          seed.turnAt = time + 5;
+          s.recovering = true;
+          s.turnAt = time + 5;
         } else if (
-          seed.recovering &&
-          seed.x > 25 &&
-          seed.x < width - 25 &&
-          seed.y > 25 &&
-          seed.y < height - 25
+          s.recovering &&
+          s.x > 25 &&
+          s.x < width - 25 &&
+          s.y > 25 &&
+          s.y < height - 25
         ) {
-          seed.recovering = false;
-          seed.turnAt = time + random(2, 4);
+          s.recovering = false;
+          s.turnAt = time + random(2, 4);
         }
 
-        if (
-          !seed.recovering &&
-          time >= seed.turnAt
-        ) {
-          seed.heading +=
+        if (!s.recovering && time >= s.turnAt) {
+          s.heading +=
             (Math.random() < 0.5 ? -1 : 1) *
             random(0.8, 2.1);
 
-          seed.turnAt = time + random(3.5, 7);
+          s.turnAt = time + random(3.5, 7);
         }
 
-        if (seed.age > 0.65) {
+        if (s.age > 0.65) {
           const heading =
-            seed.heading +
-            Math.sin(time * 0.22 + seed.phase) * 0.32;
+            s.heading +
+            Math.sin(time * 0.22 + s.phase) * 0.32;
 
-          const blend =
-            1 - Math.exp(-delta * 0.35);
+          const blend = 1 - Math.exp(-delta * 0.35);
 
-          seed.vx +=
-            (
-              Math.cos(heading) * seed.speed -
-              seed.vx
-            ) * blend;
+          s.vx +=
+            (Math.cos(heading) * s.speed - s.vx) * blend;
 
-          seed.vy +=
-            (
-              Math.sin(heading) * seed.speed -
-              seed.vy
-            ) * blend;
+          s.vy +=
+            (Math.sin(heading) * s.speed - s.vy) * blend;
         }
 
-        seed.x +=
-          (
-            seed.vx +
-            Math.sin(time * 0.29 + seed.phase) *
-              3 * seed.depth
-          ) * delta;
+        s.x += (
+          s.vx +
+          Math.sin(time * 0.29 + s.phase) * 3 * s.depth
+        ) * delta;
 
-        seed.y +=
-          (
-            seed.vy +
-            Math.cos(time * 0.24 + seed.phase) *
-              3 * seed.depth -
-            breeze
-          ) * delta;
+        s.y += (
+          s.vy +
+          Math.cos(time * 0.24 + s.phase) * 3 * s.depth -
+          breeze
+        ) * delta;
 
-        seed.angle += seed.spin * delta;
+        s.angle += s.spin * delta;
 
-        if (seed.age >= seed.life) {
-          seed.el.remove();
+        if (s.age >= s.life) {
+          s.els.forEach(el => el.remove());
           seeds.splice(i, 1);
         }
       }
     }
 
-    // Update on every display frame; speed remains time-based.
     function tick(now) {
       raf = 0;
-
       if (document.hidden || !canMove()) return;
 
-      const delta = Math.min(
-        (now - last) / 1000,
-        0.05
-      );
-
+      const delta = Math.min((now - last) / 1000, 0.05);
       last = now;
 
       update(delta);
       paint();
-
       raf = requestAnimationFrame(tick);
     }
 
@@ -1388,70 +1449,78 @@
       animation.pause();
 
       if (document.hidden || !canMove()) {
-        sway?.pause();
+        sways.forEach(sway => sway.pause());
         cancelAnimationFrame(raf);
         raf = 0;
       } else {
-        sway?.play();
+        const position = sways[0]?.currentTime || 0;
 
-        if (raf) return;
+        sways.forEach(sway => {
+          sway.currentTime = position;
+          sway.play();
+        });
 
-        last = performance.now();
-        raf = requestAnimationFrame(tick);
+        if (!raf) {
+          last = performance.now();
+          raf = requestAnimationFrame(tick);
+        }
       }
     }
 
     function resize() {
-      const oldW = width;
-      const oldH = height;
-
-      width = document.documentElement.clientWidth;
-      height = innerHeight;
+      const oldW = width, oldH = height;
+      width = field.clientWidth;
+      height = field.clientHeight;
 
       if (oldW && oldH) {
-        seeds.forEach(seed => {
-          seed.x *= width / oldW;
-          seed.y *= height / oldH;
+        seeds.forEach(s => {
+          s.x *= width / oldW;
+          s.y *= height / oldH;
         });
       }
 
-      flowerBox = flower.getBoundingClientRect();
-
-      animation.resize();
+      anchorStem();
       dirty = true;
       paint();
+      sync();
     }
 
     window.addEventListener("resize", resize, {
       passive: true,
     });
 
-    window.addEventListener(
-      "scroll",
-      () => {
-        breeze = clamp(
-          breeze + (scrollY - previousScroll) * 0.035,
-          -8,
-          8
-        );
+    window.visualViewport?.addEventListener("resize", resize, {
+      passive: true,
+    });
 
-        previousScroll = scrollY;
-        dirty = true;
+    window.addEventListener("scroll", () => {
+      breeze = clamp(
+        breeze + (scrollY - previousScroll) * 0.035,
+        -8,
+        8
+      );
 
-        if (!canMove()) paint();
-      },
-      { passive: true }
-    );
+      previousScroll = scrollY;
+      dirty = true;
+
+      if (!canMove()) paint();
+    }, { passive: true });
 
     document.addEventListener("visibilitychange", sync);
     document.addEventListener("emel:motionchange", sync);
     media.addEventListener("change", sync);
 
-    resize();
-
-    for (let i = 0; i < 3; i++) {
-      release(true);
+    if ("ResizeObserver" in window) {
+      new ResizeObserver(() => {
+        dirty = true;
+        if (!canMove()) paint();
+      }).observe(document.querySelector("main"));
     }
+
+    resize();
+    flowers.forEach(el => el.classList.add("is-ready"));
+
+    for (let i = 0; i < 3; i++) release(true);
 
     paint();
     sync();
