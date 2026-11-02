@@ -728,468 +728,492 @@
 
   setupShader();
 })();
-// Corner dandelion: gentle movement and a continuous page-wide breeze.
-(() => {
+// Lottie dandelion and matching seeds across the whole page.
+(async () => {
   "use strict";
 
-  // Remove the previous decorative plants and seed fields.
+  if (document.getElementById("eg-flower")) return;
+
   document
-    .querySelectorAll(".hero-art, .seed-field, .process-decoration")
+    .querySelectorAll(
+      ".hero-art, .seed-field, .process-decoration, #eg-breeze"
+    )
     .forEach(el => el.remove());
 
-  if (document.querySelector("#eg-breeze")) return;
-
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-
-  if (!ctx) return;
-
-  canvas.id = "eg-breeze";
-  canvas.setAttribute("aria-hidden", "true");
-  document.body.append(canvas);
-
-  const media = matchMedia("(prefers-reduced-motion: reduce)");
-
-  const canMove = () =>
-    !media.matches &&
-    document.documentElement.dataset.motion !== "reduced";
-
-  const TAU = Math.PI * 2;
-  const random = (min, max) => min + Math.random() * (max - min);
-  const ease = x => x * x * (3 - 2 * x);
-  const clamp = (x, min, max) => Math.max(min, Math.min(max, x));
-
-  let width = 0;
-  let height = 0;
-  let ratio = 1;
-  let time = 0;
-  let raf = 0;
-  let last = 0;
-  let nextRelease = 2.6;
-  let scrollBreeze = 0;
-  let lastScroll = scrollY;
-  let bandDirty = true;
-  let darkBand = { top: -1, bottom: -1 };
-
-  const darkSection = document.querySelector(".process");
-  const particles = [];
-
-  // Draw the fine filaments once and reuse them during animation.
-  function makeTuft(light, variant) {
-    const image = document.createElement("canvas");
-    image.width = 144;
-    image.height = 176;
-
-    const c = image.getContext("2d");
-
-    c.scale(2, 2);
-    c.translate(36, 30);
-    c.lineCap = "round";
-
-    for (let i = 0; i < 27; i++) {
-      const angle = -Math.PI + (i / 26) * Math.PI;
-      const length = 0.86 + Math.sin(i * 13.7 + variant) * 0.12;
-      const x = Math.cos(angle) * (23 + variant) * length;
-      const y = Math.sin(angle) * (17 + variant) * length - 2;
-
-      c.strokeStyle = light
-        ? "rgba(238,235,212,.88)"
-        : "rgba(84,105,66,.7)";
-
-      c.lineWidth = 0.48 + (i % 3) * 0.09;
-      c.beginPath();
-      c.moveTo(0, 0);
-      c.quadraticCurveTo(x * 0.45, y * 0.7, x, y);
-      c.stroke();
-
-      c.lineWidth = 0.34;
-      c.beginPath();
-      c.moveTo(x, y);
-      c.lineTo(
-        x + Math.cos(angle - 0.6) * 2.8,
-        y + Math.sin(angle - 0.6) * 2.8
-      );
-      c.moveTo(x, y);
-      c.lineTo(
-        x + Math.cos(angle + 0.6) * 2.8,
-        y + Math.sin(angle + 0.6) * 2.8
-      );
-      c.stroke();
+  function loadPlayer() {
+    if (window.lottie) {
+      return Promise.resolve(window.lottie);
     }
 
-    c.strokeStyle = light ? "#c5d1ac" : "#7a8863";
-    c.lineWidth = 0.85;
-    c.beginPath();
-    c.moveTo(0, 0);
-    c.quadraticCurveTo(3, 15, -3, 32);
-    c.stroke();
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
 
-    c.fillStyle = light ? "#d9cbaa" : "#8b7956";
-    c.beginPath();
-    c.ellipse(-3, 35, 1.25, 4, 0.15, 0, TAU);
-    c.fill();
+      script.src =
+        "https://cdnjs.cloudflare.com/ajax/libs/bodymovin/5.13.0/lottie.min.js";
 
-    return image;
+      script.onload = () => resolve(window.lottie);
+
+      script.onerror = () =>
+        reject(new Error("Lottie player could not load."));
+
+      document.head.append(script);
+    });
   }
 
-  const sprites = [false, true].map(light =>
-    Array.from({ length: 3 }, (_, i) => makeTuft(light, i))
-  );
+  const ready = animation =>
+    new Promise((resolve, reject) => {
+      animation.addEventListener("DOMLoaded", resolve);
 
-  // A spherical arrangement gives the seed head depth.
-  const attached = Array.from({ length: 125 }, (_, i) => {
-    const z = 1 - (2 * (i + 0.5)) / 125;
-    const angle = i * 2.399963;
-    const radius = Math.sqrt(1 - z * z) * 47;
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius;
+      animation.addEventListener("data_failed", () => {
+        reject(new Error("Invalid animation data."));
+      });
+    });
 
-    return {
-      x,
-      y,
-      z,
-      rotation: Math.atan2(y, x) + Math.PI / 2,
-      scale: 0.23 + (z + 1) * 0.105,
-      variant: i % 3,
-      returnAt: -100,
-    };
-  }).sort((a, b) => a.z - b.z);
+  const copy = value =>
+    JSON.parse(JSON.stringify(value));
 
-  function pose() {
-    const mobile = width < 600;
+  const random = (min, max) =>
+    min + Math.random() * (max - min);
 
-    const scale = mobile
-      ? clamp(height / 900, 0.64, 0.82)
-      : clamp(height / 850, 0.82, 1.1);
+  const clamp = (value, min, max) =>
+    Math.max(min, Math.min(max, value));
 
-    return {
-      x:
-        (mobile ? 28 : 62) * scale +
-        Math.sin(time * 0.35) * 7 * scale,
+  try {
+    const [data, player] = await Promise.all([
+      fetch("dandelion.json?v=20261102-3").then(response => {
+        if (!response.ok) {
+          throw new Error(
+            "dandelion.json: " + response.status
+          );
+        }
 
-      y:
-        height -
-        (mobile ? 222 : 253) * scale +
-        Math.cos(time * 0.29) * 3,
+        return response.json();
+      }),
 
-      scale,
-      rotation: -0.2 + Math.sin(time * 0.33) * 0.045,
-    };
-  }
+      loadPlayer(),
+    ]);
 
-  function isDark(y) {
-    return y >= darkBand.top && y <= darkBand.bottom;
-  }
-
-  function drawTuft(x, y, scale, rotation, alpha, variant) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(rotation);
-    ctx.scale(scale, scale);
-    ctx.globalAlpha = alpha;
-
-    ctx.drawImage(
-      sprites[isDark(y) ? 1 : 0][variant],
-      -36,
-      -30,
-      72,
-      88
-    );
-
-    ctx.restore();
-  }
-
-  function release(warmStart = false) {
-    if (particles.length >= (width < 600 ? 10 : 18)) return;
-
-    const choices = attached.filter(
-      seed =>
-        time > seed.returnAt + 5 &&
-        seed.x > -15 &&
-        seed.y < 24 &&
-        Math.hypot(seed.x, seed.y) > 27
-    );
-
-    if (!choices.length) return;
-
-    const source = choices[Math.floor(random(0, choices.length))];
-    const plant = pose();
-    const cos = Math.cos(plant.rotation);
-    const sin = Math.sin(plant.rotation);
-
-    const seed = {
-      x:
-        plant.x +
-        (source.x * cos - source.y * sin) * plant.scale,
-
-      y:
-        plant.y +
-        (source.x * sin + source.y * cos) * plant.scale,
-
-      age: 0,
-      life: random(95, 135),
-      vx: random(15, 27),
-      vy: random(-12, -6),
-      scale: source.scale * plant.scale,
-      targetScale: random(0.38, 0.7),
-      rotation: source.rotation + plant.rotation,
-      phase: random(0, TAU),
-      opacity: random(0.48, 0.76),
-      variant: source.variant,
-    };
-
-    source.returnAt = time + random(14, 21);
-
-    // Begin with a few seeds already carried by the breeze.
-    if (warmStart) {
-      seed.x += random(0.15, 0.85) * width;
-      seed.y -= random(0.15, 0.6) * height;
-      seed.age = 12;
-    }
-
-    particles.push(seed);
-  }
-
-  function paint() {
-    if (bandDirty) {
-      const rect = darkSection?.getBoundingClientRect();
-
-      darkBand = rect
-        ? { top: rect.top, bottom: rect.bottom }
-        : { top: -1, bottom: -1 };
-
-      bandDirty = false;
-    }
-
-    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    ctx.clearRect(0, 0, width, height);
-
-    const plant = pose();
-    const dark = isDark(plant.y);
-    const baseX = -18;
-    const baseY = height + 15;
-
-    ctx.lineCap = "round";
-
-    const stem = ctx.createLinearGradient(
-      0,
-      plant.y,
-      0,
-      height
-    );
-
-    stem.addColorStop(
-      0,
-      dark ? "#c1cda2" : "#72835b"
-    );
-
-    stem.addColorStop(
-      1,
-      isDark(height - 2) ? "#a9ba8c" : "#9ba382"
-    );
-
-    ctx.strokeStyle = stem;
-    ctx.lineWidth = 2.1 * plant.scale;
-
-    ctx.beginPath();
-    ctx.moveTo(baseX, baseY);
-    ctx.bezierCurveTo(
-      55 * plant.scale,
-      height - 60 * plant.scale,
-      plant.x - 45 * plant.scale,
-      plant.y + 100 * plant.scale,
-      plant.x,
-      plant.y + 8 * plant.scale
-    );
-    ctx.stroke();
-
-    // The head follows the same gentle sway as the stem.
-    ctx.save();
-    ctx.translate(plant.x, plant.y);
-    ctx.rotate(plant.rotation);
-    ctx.scale(plant.scale, plant.scale);
-
-    for (const seed of attached) {
-      const opacity = ease(
-        clamp((time - seed.returnAt) / 5, 0, 1)
-      );
-
-      if (!opacity) continue;
-
-      ctx.strokeStyle = dark
-        ? "rgba(201,212,174,.22)"
-        : "rgba(112,129,90,.24)";
-
-      ctx.lineWidth = 0.45;
-      ctx.beginPath();
-      ctx.moveTo(seed.x * 0.12, seed.y * 0.12);
-      ctx.lineTo(seed.x, seed.y);
-      ctx.globalAlpha = opacity;
-      ctx.stroke();
-
-      ctx.save();
-      ctx.translate(seed.x, seed.y);
-      ctx.rotate(seed.rotation);
-      ctx.scale(seed.scale, seed.scale);
-
-      ctx.globalAlpha =
-        opacity * (0.42 + (seed.z + 1) * 0.22);
-
-      ctx.drawImage(
-        sprites[dark ? 1 : 0][seed.variant],
-        -36,
-        -30,
-        72,
-        88
-      );
-
-      ctx.restore();
-    }
-
-    ctx.restore();
-
-    for (const seed of particles) {
-      const grow = ease(clamp(seed.age / 8, 0, 1));
-
-      const fade = clamp(
-        (seed.life - seed.age) / 8,
-        0,
-        1
-      );
-
-      drawTuft(
-        seed.x,
-        seed.y,
-        seed.scale +
-          (seed.targetScale - seed.scale) * grow,
-        seed.rotation +
-          Math.sin(seed.age * 0.28 + seed.phase) * 0.22,
-        seed.opacity * fade,
-        seed.variant
-      );
-    }
-  }
-
-  function update(delta) {
-    time += delta;
-    scrollBreeze *= Math.exp(-delta * 2);
-
-    // Release one seed at a time, with irregular pauses.
-    if (time >= nextRelease) {
-      release();
-      nextRelease = time + random(4, 7);
-    }
-
-    for (let i = particles.length - 1; i >= 0; i--) {
-      const seed = particles[i];
-
-      seed.age += delta;
-
-      seed.x +=
-        (
-          seed.vx +
-          Math.sin(time * 0.3 + seed.phase) * 4
-        ) * delta;
-
-      seed.y +=
-        (
-          seed.vy +
-          Math.sin(time * 0.4 + seed.phase) * 5 -
-          scrollBreeze
-        ) * delta;
+    // Keep the original paths and movement; recolor the ink.
+    function recolor(node) {
+      if (!node || typeof node !== "object") return;
 
       if (
-        seed.x > width + 70 ||
-        seed.y < -80 ||
-        seed.age >= seed.life
+        (node.ty === "fl" || node.ty === "st") &&
+        Array.isArray(node.c?.k) &&
+        typeof node.c.k[0] === "number"
       ) {
-        particles.splice(i, 1);
+        const light = node.c.k[0] > 0.4;
+
+        node.c.k = light
+          ? [0.53, 0.61, 0.45, 1]
+          : [0.24, 0.36, 0.27, 1];
       }
-    }
-  }
 
-  function tick(now) {
-    raf = 0;
-
-    if (document.hidden || !canMove()) return;
-
-    const elapsed = now - last;
-
-    if (elapsed >= 33) {
-      update(Math.min(elapsed / 1000, 0.08));
-      paint();
-      last = now;
-    }
-
-    raf = requestAnimationFrame(tick);
-  }
-
-  function sync() {
-    if (document.hidden || !canMove()) {
-      cancelAnimationFrame(raf);
-      raf = 0;
-      return;
-    }
-
-    if (!raf) {
-      last = performance.now();
-      raf = requestAnimationFrame(tick);
-    }
-  }
-
-  function resize() {
-    const oldWidth = width;
-    const oldHeight = height;
-
-    width = document.documentElement.clientWidth;
-    height = window.innerHeight;
-    ratio = Math.min(devicePixelRatio || 1, 1.75);
-
-    canvas.width = Math.round(width * ratio);
-    canvas.height = Math.round(height * ratio);
-
-    if (oldWidth && oldHeight) {
-      particles.forEach(seed => {
-        seed.x *= width / oldWidth;
-        seed.y *= height / oldHeight;
+      Object.values(node).forEach(value => {
+        if (value && typeof value === "object") {
+          recolor(value);
+        }
       });
     }
 
-    bandDirty = true;
-    paint();
-  }
+    recolor(data);
 
-  window.addEventListener("resize", resize, {
-    passive: true,
-  });
+    // Remove the small square sparkle layers.
+    data.layers = data.layers.filter(
+      layer => !/^espora/i.test(layer.nm || "")
+    );
 
-  window.addEventListener(
-    "scroll",
-    () => {
-      scrollBreeze = clamp(
-        scrollBreeze + (scrollY - lastScroll) * 0.035,
-        -8,
-        8
+    const canvas = document.createElement("canvas");
+    canvas.id = "eg-breeze";
+    canvas.setAttribute("aria-hidden", "true");
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const flower = document.createElement("div");
+    flower.id = "eg-flower";
+    flower.setAttribute("aria-hidden", "true");
+
+    document.body.append(canvas, flower);
+
+    // Use an actual seed from the supplied animation.
+    async function makeSeed() {
+      const source = data.layers.find(layer =>
+        /^semilla1 Outlines$/.test(layer.nm || "")
       );
 
-      lastScroll = scrollY;
-      bandDirty = true;
+      if (!source) {
+        throw new Error(
+          "Seed layer not found in dandelion.json."
+        );
+      }
 
-      if (!canMove()) paint();
-    },
-    { passive: true }
-  );
+      const layer = copy(source);
 
-  document.addEventListener("visibilitychange", sync);
-  document.addEventListener("emel:motionchange", sync);
-  media.addEventListener("change", sync);
+      layer.ks = {
+        o: { a: 0, k: 100 },
+        r: { a: 0, k: 0 },
+        p: { a: 0, k: [0, 0, 0] },
+        a: { a: 0, k: [0, 0, 0] },
+        s: { a: 0, k: [100, 100, 100] },
+      };
 
-  resize();
+      layer.ip = 0;
+      layer.op = 2;
+      layer.st = 0;
 
-  for (let i = 0; i < 4; i++) {
-    release(true);
+      delete layer.parent;
+
+      const holder = document.createElement("div");
+
+      holder.style.cssText =
+        "position:fixed;left:-10000px;top:0;" +
+        "width:596px;height:596px;visibility:hidden";
+
+      document.body.append(holder);
+
+      const seedAnimation = player.loadAnimation({
+        container: holder,
+        renderer: "svg",
+        loop: false,
+        autoplay: false,
+        animationData: {
+          ...copy(data),
+          layers: [layer],
+          ip: 0,
+          op: 2,
+          fr: 1,
+        },
+      });
+
+      try {
+        await ready(seedAnimation);
+        seedAnimation.goToAndStop(0, true);
+
+        const svg = holder.querySelector("svg");
+        const box = svg.getBBox();
+        const w = box.width + 8;
+        const h = box.height + 8;
+
+        svg.setAttribute(
+          "viewBox",
+          `${box.x - 4} ${box.y - 4} ${w} ${h}`
+        );
+
+        svg.setAttribute("width", String(w));
+        svg.setAttribute("height", String(h));
+        svg.removeAttribute("style");
+
+        svg
+          .querySelectorAll("[clip-path]")
+          .forEach(el => el.removeAttribute("clip-path"));
+
+        const image = new Image();
+
+        const imageLoaded = new Promise(
+          (resolve, reject) => {
+            image.onload = resolve;
+            image.onerror = reject;
+          }
+        );
+
+        image.src =
+          "data:image/svg+xml;charset=utf-8," +
+          encodeURIComponent(
+            new XMLSerializer().serializeToString(svg)
+          );
+
+        await imageLoaded;
+
+        const normal = document.createElement("canvas");
+
+        normal.width = 224;
+        normal.height = Math.ceil((224 * h) / w);
+
+        normal.getContext("2d").drawImage(
+          image,
+          0,
+          0,
+          normal.width,
+          normal.height
+        );
+
+        const light = document.createElement("canvas");
+
+        light.width = normal.width;
+        light.height = normal.height;
+
+        const c = light.getContext("2d");
+
+        c.drawImage(normal, 0, 0);
+        c.globalCompositeOperation = "source-in";
+        c.fillStyle = "#e0dfc9";
+        c.fillRect(0, 0, light.width, light.height);
+
+        return {
+          normal,
+          light,
+          ratio: h / w,
+        };
+      } finally {
+        seedAnimation.destroy();
+        holder.remove();
+      }
+    }
+
+    const sprite = await makeSeed();
+
+    const animation = player.loadAnimation({
+      name: "emel-flower",
+      container: flower,
+      renderer: "svg",
+      loop: true,
+      autoplay: false,
+      animationData: copy(data),
+      rendererSettings: {
+        preserveAspectRatio: "xMidYMid meet",
+      },
+    });
+
+    await ready(animation);
+
+    animation.setSpeed(0.42);
+    animation.setSubframe(false);
+    animation.goToAndStop(60, true);
+
+    flower.classList.add("is-ready");
+
+    const media = matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    );
+
+    const canMove = () =>
+      !media.matches &&
+      document.documentElement.dataset.motion !== "reduced";
+
+    const darkSection = document.querySelector(".process");
+    const seeds = [];
+
+    let width = 0;
+    let height = 0;
+    let ratio = 1;
+    let time = 0;
+    let raf = 0;
+    let last = 0;
+    let nextSeed = 5;
+    let dirty = true;
+    let breeze = 0;
+    let previousScroll = scrollY;
+    let flowerBox;
+    let darkBand = { top: -1, bottom: -1 };
+
+    const isDark = y =>
+      y >= darkBand.top && y <= darkBand.bottom;
+
+    function release(warm = false) {
+      if (seeds.length >= (width < 600 ? 6 : 12)) return;
+
+      seeds.push({
+        x: warm
+          ? random(0.2, 0.9) * width
+          : flowerBox.left + flowerBox.width * 0.84,
+
+        y: warm
+          ? random(0.12, 0.8) * height
+          : flowerBox.top + flowerBox.height * 0.16,
+
+        vx: random(12, 23),
+        vy: random(-10, -4),
+
+        size: random(
+          width < 600 ? 28 : 36,
+          width < 600 ? 44 : 58
+        ),
+
+        angle: random(-0.55, 0.05),
+        phase: random(0, Math.PI * 2),
+        alpha: random(0.5, 0.8),
+        age: warm ? 4 : 0,
+        life: random(90, 125),
+      });
+    }
+
+    function paint() {
+      if (dirty) {
+        const box = darkSection?.getBoundingClientRect();
+
+        darkBand = box
+          ? { top: box.top, bottom: box.bottom }
+          : { top: -1, bottom: -1 };
+
+        flower.classList.toggle(
+          "is-dark",
+          isDark(flowerBox.top + flowerBox.height * 0.56)
+        );
+
+        dirty = false;
+      }
+
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+
+      for (const seed of seeds) {
+        const fade = Math.min(
+          1,
+          seed.age / 3,
+          (seed.life - seed.age) / 8
+        );
+
+        ctx.save();
+        ctx.translate(seed.x, seed.y);
+
+        ctx.rotate(
+          seed.angle +
+          Math.sin(time * 0.25 + seed.phase) * 0.14
+        );
+
+        ctx.globalAlpha = Math.max(0, fade) * seed.alpha;
+
+        const h = seed.size * sprite.ratio;
+
+        ctx.drawImage(
+          isDark(seed.y) ? sprite.light : sprite.normal,
+          -seed.size / 2,
+          -h / 2,
+          seed.size,
+          h
+        );
+
+        ctx.restore();
+      }
+    }
+
+    function tick(now) {
+      raf = 0;
+
+      if (document.hidden || !canMove()) return;
+
+      const elapsed = now - last;
+
+      if (elapsed >= 33) {
+        const delta = Math.min(elapsed / 1000, 0.08);
+
+        last = now;
+        time += delta;
+        breeze *= Math.exp(-delta * 2);
+
+        if (time >= nextSeed) {
+          release();
+          nextSeed = time + random(7, 11);
+        }
+
+        for (let i = seeds.length - 1; i >= 0; i--) {
+          const seed = seeds[i];
+
+          seed.age += delta;
+
+          seed.x +=
+            (
+              seed.vx +
+              Math.sin(time * 0.3 + seed.phase) * 3
+            ) * delta;
+
+          seed.y +=
+            (
+              seed.vy +
+              Math.sin(time * 0.35 + seed.phase) * 4 -
+              breeze
+            ) * delta;
+
+          if (
+            seed.x > width + 80 ||
+            seed.y < -80 ||
+            seed.age >= seed.life
+          ) {
+            seeds.splice(i, 1);
+          }
+        }
+
+        paint();
+      }
+
+      raf = requestAnimationFrame(tick);
+    }
+
+    function sync() {
+      if (document.hidden || !canMove()) {
+        animation.pause();
+        cancelAnimationFrame(raf);
+        raf = 0;
+      } else {
+        animation.play();
+
+        if (!raf) {
+          last = performance.now();
+          raf = requestAnimationFrame(tick);
+        }
+      }
+    }
+
+    function resize() {
+      const oldW = width;
+      const oldH = height;
+
+      width = document.documentElement.clientWidth;
+      height = innerHeight;
+      ratio = Math.min(devicePixelRatio || 1, 1.75);
+
+      canvas.width = Math.round(width * ratio);
+      canvas.height = Math.round(height * ratio);
+
+      if (oldW && oldH) {
+        seeds.forEach(seed => {
+          seed.x *= width / oldW;
+          seed.y *= height / oldH;
+        });
+      }
+
+      flowerBox = flower.getBoundingClientRect();
+
+      animation.resize();
+      dirty = true;
+      paint();
+    }
+
+    window.addEventListener("resize", resize, {
+      passive: true,
+    });
+
+    window.addEventListener(
+      "scroll",
+      () => {
+        breeze = clamp(
+          breeze + (scrollY - previousScroll) * 0.035,
+          -8,
+          8
+        );
+
+        previousScroll = scrollY;
+        dirty = true;
+
+        if (!canMove()) paint();
+      },
+      { passive: true }
+    );
+
+    document.addEventListener("visibilitychange", sync);
+    document.addEventListener("emel:motionchange", sync);
+    media.addEventListener("change", sync);
+
+    resize();
+
+    for (let i = 0; i < 3; i++) {
+      release(true);
+    }
+
+    paint();
+    sync();
+  } catch (error) {
+    console.error("Emel Gönül animation:", error);
   }
-
-  paint();
-  sync();
 })();
