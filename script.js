@@ -961,7 +961,14 @@
       }
     }
 
-    const sprite = await makeSeed();
+        const sprite = await makeSeed();
+
+    // Keep the flower, replace its pre-recorded seed flights.
+    const flowerData = copy(data);
+
+    flowerData.layers = flowerData.layers.filter(
+      layer => !/^semill/i.test(layer.nm || "")
+    );
 
     const animation = player.loadAnimation({
       name: "emel-flower",
@@ -969,7 +976,7 @@
       renderer: "svg",
       loop: true,
       autoplay: false,
-      animationData: copy(data),
+      animationData: flowerData,
       rendererSettings: {
         preserveAspectRatio: "xMidYMid meet",
       },
@@ -1000,7 +1007,7 @@
     let time = 0;
     let raf = 0;
     let last = 0;
-    let nextSeed = 5;
+    let nextSeed = 2.5;
     let dirty = true;
     let breeze = 0;
     let previousScroll = scrollY;
@@ -1010,32 +1017,54 @@
     const isDark = y =>
       y >= darkBand.top && y <= darkBand.bottom;
 
-    function release(warm = false) {
-      if (seeds.length >= (width < 600 ? 6 : 12)) return;
+    function chooseDestination(seed) {
+      seed.tx = random(0.06, 0.94) * width;
+      seed.ty = random(0.08, 0.9) * height;
+      seed.turnAt = time + random(14, 26);
+    }
 
-      seeds.push({
+    function release(warm = false) {
+      if (seeds.length >= (width < 600 ? 8 : 12)) return;
+
+      const angle = random(-Math.PI * 0.72, 0.12);
+      const radius = flowerBox.width * random(0.1, 0.17);
+      const depth = random(0.65, 1.1);
+      const speed = random(12, 22) * depth;
+
+      const seed = {
         x: warm
-          ? random(0.2, 0.9) * width
-          : flowerBox.left + flowerBox.width * 0.84,
+          ? random(0.1, 0.9) * width
+          : flowerBox.left +
+            flowerBox.width * 0.33 +
+            Math.cos(angle) * radius,
 
         y: warm
-          ? random(0.12, 0.8) * height
-          : flowerBox.top + flowerBox.height * 0.16,
+          ? random(0.12, 0.85) * height
+          : flowerBox.top +
+            flowerBox.height * 0.56 +
+            Math.sin(angle) * radius,
 
-        vx: random(12, 23),
-        vy: random(-10, -4),
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        speed,
+        depth,
 
-        size: random(
-          width < 600 ? 28 : 36,
-          width < 600 ? 44 : 58
-        ),
+        size:
+          random(
+            width < 600 ? 35 : 42,
+            width < 600 ? 49 : 61
+          ) * depth,
 
-        angle: random(-0.55, 0.05),
+        angle,
+        spin: random(-0.018, 0.018),
         phase: random(0, Math.PI * 2),
-        alpha: random(0.5, 0.8),
-        age: warm ? 4 : 0,
-        life: random(90, 125),
-      });
+        alpha: random(0.5, 0.78),
+        age: warm ? 8 : 0,
+        life: random(105, 160),
+      };
+
+      chooseDestination(seed);
+      seeds.push(seed);
     }
 
     function paint() {
@@ -1060,31 +1089,103 @@
       for (const seed of seeds) {
         const fade = Math.min(
           1,
-          seed.age / 3,
-          (seed.life - seed.age) / 8
+          seed.age / 1.5,
+          (seed.life - seed.age) / 9
         );
+
+        const h = seed.size * sprite.ratio;
 
         ctx.save();
         ctx.translate(seed.x, seed.y);
 
         ctx.rotate(
           seed.angle +
-          Math.sin(time * 0.25 + seed.phase) * 0.14
+          Math.sin(time * 0.2 + seed.phase) * 0.16
         );
 
         ctx.globalAlpha = Math.max(0, fade) * seed.alpha;
 
-        const h = seed.size * sprite.ratio;
-
         ctx.drawImage(
           isDark(seed.y) ? sprite.light : sprite.normal,
-          -seed.size / 2,
-          -h / 2,
+          -seed.size * 0.76,
+          -h * 0.42,
           seed.size,
           h
         );
 
         ctx.restore();
+      }
+    }
+
+    function update(delta) {
+      time += delta;
+      breeze *= Math.exp(-delta * 2);
+
+      if (time >= nextSeed) {
+        release();
+        nextSeed = time + random(4.5, 8);
+      }
+
+      for (let i = seeds.length - 1; i >= 0; i--) {
+        const seed = seeds[i];
+
+        seed.age += delta;
+
+        const dx = seed.tx - seed.x;
+        const dy = seed.ty - seed.y;
+
+        if (
+          time > seed.turnAt ||
+          Math.hypot(dx, dy) < 45
+        ) {
+          chooseDestination(seed);
+        }
+
+        // Gradual changes in direction, without sudden turns.
+        if (seed.age > 4) {
+          const heading =
+            Math.atan2(
+              seed.ty - seed.y,
+              seed.tx - seed.x
+            ) +
+            Math.sin(time * 0.16 + seed.phase) * 0.3;
+
+          const blend = 1 - Math.exp(-delta * 0.12);
+
+          seed.vx +=
+            (
+              Math.cos(heading) * seed.speed -
+              seed.vx
+            ) * blend;
+
+          seed.vy +=
+            (
+              Math.sin(heading) * seed.speed -
+              seed.vy
+            ) * blend;
+        }
+
+        seed.x +=
+          (
+            seed.vx +
+            Math.sin(time * 0.23 + seed.phase) *
+              2 * seed.depth
+          ) * delta;
+
+        seed.y +=
+          (
+            seed.vy +
+            Math.cos(time * 0.19 + seed.phase) *
+              2 * seed.depth -
+            breeze
+          ) * delta;
+
+        seed.angle += seed.spin * delta;
+
+        // Fade with age rather than disappearing at a frame edge.
+        if (seed.age >= seed.life) {
+          seeds.splice(i, 1);
+        }
       }
     }
 
@@ -1096,45 +1197,9 @@
       const elapsed = now - last;
 
       if (elapsed >= 33) {
-        const delta = Math.min(elapsed / 1000, 0.08);
-
-        last = now;
-        time += delta;
-        breeze *= Math.exp(-delta * 2);
-
-        if (time >= nextSeed) {
-          release();
-          nextSeed = time + random(7, 11);
-        }
-
-        for (let i = seeds.length - 1; i >= 0; i--) {
-          const seed = seeds[i];
-
-          seed.age += delta;
-
-          seed.x +=
-            (
-              seed.vx +
-              Math.sin(time * 0.3 + seed.phase) * 3
-            ) * delta;
-
-          seed.y +=
-            (
-              seed.vy +
-              Math.sin(time * 0.35 + seed.phase) * 4 -
-              breeze
-            ) * delta;
-
-          if (
-            seed.x > width + 80 ||
-            seed.y < -80 ||
-            seed.age >= seed.life
-          ) {
-            seeds.splice(i, 1);
-          }
-        }
-
+        update(Math.min(elapsed / 1000, 0.08));
         paint();
+        last = now;
       }
 
       raf = requestAnimationFrame(tick);
@@ -1170,6 +1235,8 @@
         seeds.forEach(seed => {
           seed.x *= width / oldW;
           seed.y *= height / oldH;
+          seed.tx *= width / oldW;
+          seed.ty *= height / oldH;
         });
       }
 
