@@ -2322,54 +2322,102 @@ body {
   );
 }
 
-/* Yeşilin iki tarafta yumuşakça silikleşmesi */
+/* Nasıl ilerliyoruz: yumuşak, mat yeşil */
 :root {
   --process-fade: 96px;
-  --process-surface: #3a554a;
-  --process-mid: #98a49b;
+  --process-surface: #4b6658;
+  --process-mid: #a1ada2;
+  --appointment-green: #d4e0cb;
+  --appointment-edge: #dce6d4;
 }
 
-/* Kremden yeşile geçişin ilk yarısı */
+/* Kremden yeşile yumuşak geçiş */
 .services {
   background: linear-gradient(
     to bottom,
     var(--cream) 0,
     var(--cream) calc(100% - var(--process-fade)),
-    #eeece4 calc(100% - var(--process-fade) * 0.75),
-    #d9dad2 calc(100% - var(--process-fade) * 0.5),
-    #bbc1b8 calc(100% - var(--process-fade) * 0.25),
+    #efede5 calc(100% - var(--process-fade) * 0.75),
+    #dbddd4 calc(100% - var(--process-fade) * 0.5),
+    #c0c6bc calc(100% - var(--process-fade) * 0.25),
     var(--process-mid) 100%
   );
 }
 
-/* Mat yeşil bölüm ve yumuşayan kenarları */
+/* Mat yeşil bölüm ve silikleşen kenarları */
 .process {
   background: linear-gradient(
     to bottom,
     var(--process-mid) 0,
-    #76877d calc(var(--process-fade) * 0.25),
-    #576e63 calc(var(--process-fade) * 0.5),
-    #425c51 calc(var(--process-fade) * 0.75),
+    #829589 calc(var(--process-fade) * 0.25),
+    #667c6f calc(var(--process-fade) * 0.5),
+    #526c5e calc(var(--process-fade) * 0.75),
     var(--process-surface) var(--process-fade),
     var(--process-surface) calc(100% - var(--process-fade)),
-    #425c51 calc(100% - var(--process-fade) * 0.75),
-    #576e63 calc(100% - var(--process-fade) * 0.5),
-    #76877d calc(100% - var(--process-fade) * 0.25),
+    #526c5e calc(100% - var(--process-fade) * 0.75),
+    #667c6f calc(100% - var(--process-fade) * 0.5),
+    #829589 calc(100% - var(--process-fade) * 0.25),
     var(--process-mid) 100%
   );
 }
 
-/* Yeşilden kreme geçişin son yarısı */
+.process .eyebrow,
+.process .body-copy,
+.process .step p,
+.process .process-bottom {
+  color: #e1e7dd;
+}
+
+.process .step-number {
+  color: #ced9c6;
+}
+
+/* Yeşilin kreme doğru yavaşça silikleşmesi */
 .faq {
   background: linear-gradient(
     to bottom,
     var(--process-mid) 0,
-    #bbc1b8 calc(var(--process-fade) * 0.25),
-    #d9dad2 calc(var(--process-fade) * 0.5),
-    #eeece4 calc(var(--process-fade) * 0.75),
+    #c0c6bc calc(var(--process-fade) * 0.25),
+    #dbddd4 calc(var(--process-fade) * 0.5),
+    #efede5 calc(var(--process-fade) * 0.75),
     var(--cream) var(--process-fade),
     var(--cream) 100%
   );
+}
+
+/* Birlikte bir alan açalım: daha belirgin adaçayı yeşili */
+.appointment {
+  border-top-color: transparent;
+  background: linear-gradient(
+    to bottom,
+    var(--cream) 0,
+    #e1e9d9 calc(var(--blend-sage) * 0.4),
+    var(--appointment-green) var(--blend-sage),
+    var(--appointment-green) calc(100% - var(--blend-sage) * 0.6),
+    var(--appointment-edge) 100%
+  );
+}
+
+.appointment .body-copy,
+.appointment-action small {
+  color: #4d6150;
+}
+
+/* Yeşil tonu alt bölüme de yay */
+.footer {
+  background: linear-gradient(
+    to bottom,
+    var(--appointment-edge) 0,
+    #e8edde calc(var(--blend-light) * 0.5),
+    var(--paper) var(--blend-light),
+    var(--paper) 100%
+  );
+}
+
+.footer-description,
+.footer-links,
+.footer-contact {
+  color: #526450;
 }
 
 @media (max-width: 880px) {
@@ -2381,30 +2429,6 @@ body {
 @media (max-width: 600px) {
   :root {
     --process-fade: 48px;
-  }
-}
-
-/* Krem → açık adaçayı → sıcak beyaz */
-.appointment {
-  border-top-color: transparent;
-
-  background: linear-gradient(
-    to bottom,
-    var(--cream) 0,
-    #f0f1e5 calc(var(--blend-sage) * 0.45),
-    #e9edde var(--blend-sage),
-    #e9edde calc(100% - var(--blend-sage)),
-    #f2f3e9 calc(100% - var(--blend-sage) * 0.4),
-    var(--paper) 100%
-  );
-}
-
-.footer {
-  background: var(--paper);
-}
-
-@media (max-width: 600px) {
-  :root {
     --blend-light: 100px;
     --blend-dark: 44px;
     --blend-sage: 72px;
