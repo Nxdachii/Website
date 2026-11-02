@@ -2271,3 +2271,13 @@ body {
     display: none;
   }
 }
+/* Tohumların animasyon çerçevesinin dışında görünmesini sağlar */
+#eg-flower,
+#eg-flower > svg {
+  overflow: visible !important;
+}
+
+/* Lottie'nin iç kırpma maskesini kaldırır */
+#eg-flower > svg > g[clip-path] {
+  clip-path: none !important;
+}
