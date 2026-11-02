@@ -961,9 +961,20 @@
       }
     }
 
-        const sprite = await makeSeed();
+            const sprite = await makeSeed();
 
-    // Keep the flower, replace its pre-recorded seed flights.
+    // Lightweight, individually animated seed images.
+    const field = document.createElement("div");
+    field.id = "eg-breeze";
+    field.setAttribute("aria-hidden", "true");
+    field.style.overflow = "hidden";
+    canvas.replaceWith(field);
+
+    const seedImages = [
+      sprite.normal.toDataURL(),
+      sprite.light.toDataURL(),
+    ];
+
     const flowerData = copy(data);
 
     flowerData.layers = flowerData.layers.filter(
@@ -984,11 +995,48 @@
 
     await ready(animation);
 
-    animation.setSpeed(0.42);
-    animation.setSubframe(false);
+    animation.setSubframe(true);
     animation.goToAndStop(60, true);
-
     flower.classList.add("is-ready");
+
+    const body = flower.querySelector("svg > g > g");
+    const svg = flower.querySelector("svg");
+    const initialMatrix = body?.getCTM();
+
+    const baseAngle = initialMatrix
+      ? Math.atan2(initialMatrix.b, initialMatrix.a) *
+        180 / Math.PI
+      : 0;
+
+    svg.style.transformOrigin = "25.62% 92.75%";
+    svg.style.willChange = "transform";
+
+    const sway = svg.animate
+      ? svg.animate(
+          [
+            {
+              transform: `rotate(${2 - baseAngle}deg)`,
+            },
+            {
+              transform: `rotate(${-2 - baseAngle}deg)`,
+            },
+            {
+              transform: `rotate(${2 - baseAngle}deg)`,
+            },
+          ],
+          {
+            duration:
+              animation.totalFrames /
+              data.fr /
+              0.42 *
+              1000,
+            iterations: Infinity,
+            easing: "ease-in-out",
+          }
+        )
+      : null;
+
+    sway?.pause();
 
     const media = matchMedia(
       "(prefers-reduced-motion: reduce)"
@@ -1000,71 +1048,168 @@
 
     const darkSection = document.querySelector(".process");
     const seeds = [];
+    const TAU = Math.PI * 2;
 
     let width = 0;
     let height = 0;
-    let ratio = 1;
     let time = 0;
     let raf = 0;
     let last = 0;
-    let nextSeed = 2.5;
+    let nextSeed = 1.5;
     let dirty = true;
     let breeze = 0;
     let previousScroll = scrollY;
     let flowerBox;
     let darkBand = { top: -1, bottom: -1 };
+    let launchBag = [];
+    let warmIndex = 0;
+
+    const warmOffset = random(0, TAU);
 
     const isDark = y =>
       y >= darkBand.top && y <= darkBand.bottom;
 
-    function chooseDestination(seed) {
-      seed.tx = random(0.06, 0.94) * width;
-      seed.ty = random(0.08, 0.9) * height;
-      seed.turnAt = time + random(14, 26);
+    // Follow the flower's actual position, scale and rotation.
+    function artworkPoint(x, y) {
+      const m = body?.getScreenCTM();
+
+      if (m) {
+        return {
+          x: m.a * x + m.c * y + m.e,
+          y: m.b * x + m.d * y + m.f,
+        };
+      }
+
+      const scale = flowerBox.width / 596 * 1.5;
+
+      return {
+        x:
+          flowerBox.left +
+          flowerBox.width * 0.33 +
+          (x - 80) * scale,
+
+        y:
+          flowerBox.top +
+          flowerBox.height * 0.56 +
+          (y - 100) * scale,
+      };
+    }
+
+    function launchPoint() {
+      const center = artworkPoint(80, 100);
+      let point;
+      let heading;
+
+      for (let attempt = 0; attempt < 12; attempt++) {
+        if (!launchBag.length) {
+          launchBag = [
+            -2.65, -1.85, -1.1, -0.35, 0.45, 1.15,
+          ];
+
+          for (let i = launchBag.length - 1; i > 0; i--) {
+            const j = Math.floor(random(0, i + 1));
+
+            [launchBag[i], launchBag[j]] = [
+              launchBag[j],
+              launchBag[i],
+            ];
+          }
+        }
+
+        const angle =
+          launchBag.pop() + random(-0.18, 0.18);
+
+        const radius = random(58, 76);
+
+        point = artworkPoint(
+          80 + Math.cos(angle) * radius,
+          100 + Math.sin(angle) * radius
+        );
+
+        heading = Math.atan2(
+          point.y - center.y,
+          point.x - center.x
+        );
+
+        if (
+          point.x > 6 &&
+          point.x < width - 6 &&
+          point.y > 20 &&
+          point.y < height - 12
+        ) {
+          break;
+        }
+      }
+
+      return { ...point, heading };
     }
 
     function release(warm = false) {
       if (seeds.length >= (width < 600 ? 8 : 12)) return;
 
-      const angle = random(-Math.PI * 0.72, 0.12);
-      const radius = flowerBox.width * random(0.1, 0.17);
-      const depth = random(0.65, 1.1);
-      const speed = random(12, 22) * depth;
+      const source = launchPoint();
 
-      const seed = {
+      const heading = warm
+        ? warmOffset +
+          warmIndex++ * TAU / 3 +
+          random(-0.25, 0.25)
+        : source.heading;
+
+      const depth = random(0.75, 1.12);
+      const speed = random(22, 30) * depth;
+
+      const size =
+        random(
+          width < 600 ? 35 : 42,
+          width < 600 ? 49 : 61
+        ) * depth;
+
+      const el = document.createElement("img");
+
+      el.alt = "";
+      el.draggable = false;
+      el.src = seedImages[0];
+
+      el.style.cssText = `
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: ${size}px;
+        height: ${size * sprite.ratio}px;
+        transform-origin: 76% 42%;
+        will-change: transform, opacity;
+        pointer-events: none;
+        opacity: 0;
+      `;
+
+      field.append(el);
+
+      seeds.push({
         x: warm
-          ? random(0.1, 0.9) * width
-          : flowerBox.left +
-            flowerBox.width * 0.33 +
-            Math.cos(angle) * radius,
+          ? random(0.12, 0.9) * width
+          : source.x,
 
         y: warm
           ? random(0.12, 0.85) * height
-          : flowerBox.top +
-            flowerBox.height * 0.56 +
-            Math.sin(angle) * radius,
+          : source.y,
 
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
+        vx: Math.cos(heading) * speed,
+        vy: Math.sin(heading) * speed,
+        heading: heading + random(-1.3, 1.3),
         speed,
         depth,
-
-        size:
-          random(
-            width < 600 ? 35 : 42,
-            width < 600 ? 49 : 61
-          ) * depth,
-
-        angle,
-        spin: random(-0.018, 0.018),
-        phase: random(0, Math.PI * 2),
-        alpha: random(0.5, 0.78),
+        size,
+        el,
+        dark: false,
+        angle: heading,
+        spin: random(-0.025, 0.025),
+        phase: random(0, TAU),
+        alpha: random(0.5, 0.76),
         age: warm ? 8 : 0,
-        life: random(105, 160),
-      };
-
-      chooseDestination(seed);
-      seeds.push(seed);
+        life: random(85, 125),
+        turnAt: time + random(3.5, 7),
+        recovering: false,
+      });
     }
 
     function paint() {
@@ -1077,53 +1222,60 @@
 
         flower.classList.toggle(
           "is-dark",
-          isDark(flowerBox.top + flowerBox.height * 0.56)
+          isDark(artworkPoint(80, 100).y)
         );
 
         dirty = false;
       }
 
-      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-      ctx.clearRect(0, 0, width, height);
-
       for (const seed of seeds) {
         const fade = Math.min(
           1,
-          seed.age / 1.5,
-          (seed.life - seed.age) / 9
+          seed.age / 0.75,
+          (seed.life - seed.age) / 8
         );
 
         const h = seed.size * sprite.ratio;
 
-        ctx.save();
-        ctx.translate(seed.x, seed.y);
-
-        ctx.rotate(
+        const angle =
           seed.angle +
-          Math.sin(time * 0.2 + seed.phase) * 0.16
+          Math.sin(time * 0.25 + seed.phase) * 0.16;
+
+        const dark = isDark(seed.y);
+
+        if (dark !== seed.dark) {
+          seed.el.src = seedImages[dark ? 1 : 0];
+          seed.dark = dark;
+        }
+
+        seed.el.style.transform =
+          `translate3d(` +
+          `${seed.x - seed.size * 0.76}px,` +
+          `${seed.y - h * 0.42}px,0) ` +
+          `rotate(${angle}rad)`;
+
+        seed.el.style.opacity = String(
+          Math.max(0, fade) * seed.alpha
         );
-
-        ctx.globalAlpha = Math.max(0, fade) * seed.alpha;
-
-        ctx.drawImage(
-          isDark(seed.y) ? sprite.light : sprite.normal,
-          -seed.size * 0.76,
-          -h * 0.42,
-          seed.size,
-          h
-        );
-
-        ctx.restore();
       }
     }
 
     function update(delta) {
       time += delta;
+
+      if (!sway) {
+        animation.goToAndStop(
+          (60 + time * data.fr * 0.42) %
+            animation.totalFrames,
+          true
+        );
+      }
+
       breeze *= Math.exp(-delta * 2);
 
       if (time >= nextSeed) {
         release();
-        nextSeed = time + random(4.5, 8);
+        nextSeed = time + random(2.8, 4.8);
       }
 
       for (let i = seeds.length - 1; i >= 0; i--) {
@@ -1131,26 +1283,50 @@
 
         seed.age += delta;
 
-        const dx = seed.tx - seed.x;
-        const dy = seed.ty - seed.y;
+        const outside =
+          seed.x < -45 ||
+          seed.x > width + 45 ||
+          seed.y < -45 ||
+          seed.y > height + 45;
 
-        if (
-          time > seed.turnAt ||
-          Math.hypot(dx, dy) < 45
+        if (outside && !seed.recovering) {
+          seed.heading =
+            Math.atan2(
+              height * 0.5 - seed.y,
+              width * 0.5 - seed.x
+            ) + random(-0.6, 0.6);
+
+          seed.recovering = true;
+          seed.turnAt = time + 5;
+        } else if (
+          seed.recovering &&
+          seed.x > 25 &&
+          seed.x < width - 25 &&
+          seed.y > 25 &&
+          seed.y < height - 25
         ) {
-          chooseDestination(seed);
+          seed.recovering = false;
+          seed.turnAt = time + random(2, 4);
         }
 
-        // Gradual changes in direction, without sudden turns.
-        if (seed.age > 4) {
-          const heading =
-            Math.atan2(
-              seed.ty - seed.y,
-              seed.tx - seed.x
-            ) +
-            Math.sin(time * 0.16 + seed.phase) * 0.3;
+        if (
+          !seed.recovering &&
+          time >= seed.turnAt
+        ) {
+          seed.heading +=
+            (Math.random() < 0.5 ? -1 : 1) *
+            random(0.8, 2.1);
 
-          const blend = 1 - Math.exp(-delta * 0.12);
+          seed.turnAt = time + random(3.5, 7);
+        }
+
+        if (seed.age > 0.65) {
+          const heading =
+            seed.heading +
+            Math.sin(time * 0.22 + seed.phase) * 0.32;
+
+          const blend =
+            1 - Math.exp(-delta * 0.35);
 
           seed.vx +=
             (
@@ -1168,55 +1344,60 @@
         seed.x +=
           (
             seed.vx +
-            Math.sin(time * 0.23 + seed.phase) *
-              2 * seed.depth
+            Math.sin(time * 0.29 + seed.phase) *
+              3 * seed.depth
           ) * delta;
 
         seed.y +=
           (
             seed.vy +
-            Math.cos(time * 0.19 + seed.phase) *
-              2 * seed.depth -
+            Math.cos(time * 0.24 + seed.phase) *
+              3 * seed.depth -
             breeze
           ) * delta;
 
         seed.angle += seed.spin * delta;
 
-        // Fade with age rather than disappearing at a frame edge.
         if (seed.age >= seed.life) {
+          seed.el.remove();
           seeds.splice(i, 1);
         }
       }
     }
 
+    // Update on every display frame; speed remains time-based.
     function tick(now) {
       raf = 0;
 
       if (document.hidden || !canMove()) return;
 
-      const elapsed = now - last;
+      const delta = Math.min(
+        (now - last) / 1000,
+        0.05
+      );
 
-      if (elapsed >= 33) {
-        update(Math.min(elapsed / 1000, 0.08));
-        paint();
-        last = now;
-      }
+      last = now;
+
+      update(delta);
+      paint();
 
       raf = requestAnimationFrame(tick);
     }
 
     function sync() {
+      animation.pause();
+
       if (document.hidden || !canMove()) {
-        animation.pause();
+        sway?.pause();
         cancelAnimationFrame(raf);
         raf = 0;
       } else {
-        animation.play();
+        sway?.play();
 
-        if (!raf) {
-          last = performance.now();
-          raf = requestAnimationFrame(tick);
-        }
+        if (raf) return;
+
+        last = performance.now();
+        raf = requestAnimationFrame(tick);
       }
     }
 
@@ -1226,17 +1407,11 @@
 
       width = document.documentElement.clientWidth;
       height = innerHeight;
-      ratio = Math.min(devicePixelRatio || 1, 1.75);
-
-      canvas.width = Math.round(width * ratio);
-      canvas.height = Math.round(height * ratio);
 
       if (oldW && oldH) {
         seeds.forEach(seed => {
           seed.x *= width / oldW;
           seed.y *= height / oldH;
-          seed.tx *= width / oldW;
-          seed.ty *= height / oldH;
         });
       }
 
