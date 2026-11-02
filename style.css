@@ -2420,17 +2420,24 @@ body {
   color: #526450;
 }
 
+/* İnce ve hafif renk geçişleri */
+:root {
+  --process-fade: 24px;
+  --blend-light: 48px;
+  --blend-sage: 32px;
+}
+
 @media (max-width: 880px) {
   :root {
-    --process-fade: 64px;
+    --process-fade: 16px;
   }
 }
 
 @media (max-width: 600px) {
   :root {
-    --process-fade: 48px;
-    --blend-light: 100px;
+    --process-fade: 12px;
+    --blend-light: 32px;
     --blend-dark: 44px;
-    --blend-sage: 72px;
+    --blend-sage: 24px;
   }
 }
