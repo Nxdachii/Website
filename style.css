@@ -2974,3 +2974,49 @@ summary,
     grid-template-columns: minmax(0, 1fr);
   }
 }
+/* Suluboya çalışma alanı görselleri */
+.about-grid {
+  align-items: start;
+}
+
+.service {
+  grid-template-columns:
+    clamp(110px, 9vw, 170px)
+    minmax(0, 1fr)
+    30px;
+  column-gap: 24px;
+  align-items: start;
+}
+
+.service-art {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  align-self: center;
+  margin: 0;
+  width: 100%;
+  aspect-ratio: 1;
+}
+
+.service-art img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+@media (max-width: 600px) {
+  .service {
+    grid-template-columns: 88px minmax(0, 1fr);
+    column-gap: 16px;
+  }
+
+  .service-no {
+    display: none;
+  }
+}
+
+@media (max-width: 380px) {
+  .service {
+    grid-template-columns: 64px minmax(0, 1fr);
+    column-gap: 12px;
+  }
+}
