@@ -3325,3 +3325,35 @@ summary,
     padding-block: 56px;
   }
 }
+/* Hafif animasyon: küçük görsel katmanları ve yerel renk maskeleri. */
+#calm-shader {
+  display: none;
+}
+
+.header,
+.header.is-scrolled {
+  background: #f6f3eb;
+  backdrop-filter: none;
+}
+
+#eg-breeze .eg-piece {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  contain: layout style paint;
+}
+
+#eg-breeze .eg-pigment {
+  position: absolute;
+  inset: 0;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+}
+
+#eg-breeze .eg-pigment img {
+  position: absolute;
+  display: block;
+  max-width: none;
+  object-fit: contain;
+}
