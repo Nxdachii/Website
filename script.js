@@ -361,9 +361,11 @@
           23
       );
 
-      if (location.hash !== hash) {
-        history.pushState(null, "", hash);
-      }
+            history.replaceState(
+        history.state,
+        "",
+        location.pathname + location.search
+      );
 
       const focusTarget = target.querySelector("h1, h2") || target;
 
@@ -1102,4 +1104,32 @@
 
   paint();
   sync();
+})();
+// Bölüm bağlantılarını adres çubuğundan temizle.
+(() => {
+  "use strict";
+
+  function clearSectionHash() {
+    if (!location.href.includes("#")) return;
+
+    history.replaceState(
+      history.state,
+      "",
+      location.pathname + location.search
+    );
+  }
+
+  const cleanAfterNavigation = () =>
+    requestAnimationFrame(clearSectionHash);
+
+  window.addEventListener("hashchange", cleanAfterNavigation);
+  window.addEventListener("pageshow", cleanAfterNavigation);
+
+  if (document.readyState === "complete") {
+    cleanAfterNavigation();
+  } else {
+    window.addEventListener("load", cleanAfterNavigation, {
+      once: true
+    });
+  }
 })();
