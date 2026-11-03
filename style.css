@@ -3357,3 +3357,89 @@ summary,
   max-width: none;
   object-fit: contain;
 }
+/* Üst bölümde daha hafif arka plan */
+.hero .ambient {
+  opacity: 1;
+  -webkit-mask-image: none;
+  mask-image: none;
+  background:
+    radial-gradient(
+      ellipse at 84% 40%,
+      rgba(225, 232, 211, .45),
+      transparent 49%
+    ),
+    radial-gradient(
+      ellipse at 0% 95%,
+      rgba(236, 230, 215, .45),
+      transparent 50%
+    );
+}
+
+.hero .ambient::after {
+  inset: auto;
+  top: 8%;
+  right: 3%;
+  width: min(64vw, 680px);
+  height: min(62vh, 520px);
+  background: radial-gradient(
+    ellipse,
+    rgba(222, 231, 207, .18),
+    transparent 70%
+  );
+  transform: none;
+  animation: eg-soft-light 18s ease-in-out infinite alternate;
+}
+
+.hero .ambient::before {
+  content: "";
+  position: absolute;
+  inset: auto 0 0;
+  height: var(--blend-light, 6px);
+  background: linear-gradient(
+    to bottom,
+    transparent,
+    var(--cream)
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+
+@keyframes eg-soft-light {
+  from { opacity: .45; }
+  to { opacity: .9; }
+}
+
+.hero.animation-paused .ambient::after,
+body.animation-paused .hero .ambient::after {
+  animation-play-state: paused;
+}
+
+/* Saydamlığı tüm ekran yerine küçük görsellere uygula */
+#eg-breeze {
+  opacity: 1;
+}
+
+#eg-breeze .eg-pigment img {
+  opacity: .72;
+}
+
+/* Daha küçük ve ekran boyutuna uyumlu fotoğraf */
+.portrait {
+  width: 88%;
+  max-width: 520px;
+  height: auto;
+  justify-self: center;
+  margin-inline: auto;
+}
+
+@media (max-width: 900px) {
+  .portrait {
+    max-width: 360px;
+  }
+}
+
+@media (max-width: 600px) {
+  .portrait {
+    max-width: 320px;
+  }
+}
