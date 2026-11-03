@@ -379,6 +379,7 @@
       focusTarget.focus({ preventScroll: true });
 
       if (lenis) {
+                lenis.resize();
         lenis.scrollTo(top, { duration: 0.95 });
       } else {
         window.scrollTo({
@@ -726,15 +727,29 @@
     });
   }
 
-  function measure() {
-    const w = field.clientWidth;
-    const h = field.clientHeight;
-    const rect = section?.getBoundingClientRect();
+    let sectionBounds = null;
 
-    top = rect?.top ?? Infinity;
-    bottom = rect?.bottom ?? Infinity;
+  function measure() {
+    if (resizePending || !sectionBounds) {
+      const rect = section?.getBoundingClientRect();
+
+      sectionBounds = rect
+        ? {
+            top: rect.top + scrollY,
+            bottom: rect.bottom + scrollY
+          }
+        : {
+            top: Infinity,
+            bottom: Infinity
+          };
+    }
+
+    top = sectionBounds.top - scrollY;
+    bottom = sectionBounds.bottom - scrollY;
 
     if (resizePending) {
+      const w = field.clientWidth;
+      const h = field.clientHeight;
       fade = Math.max(
         .5,
         parseFloat(
@@ -1075,9 +1090,10 @@
   media.addEventListener("change", sync);
 
   if ("ResizeObserver" in window) {
-    new ResizeObserver(refresh).observe(
-      document.querySelector("main")
-    );
+        new ResizeObserver(() => {
+      sectionBounds = null;
+      refresh();
+    }).observe(document.querySelector("main"));
   }
 
   measure();
